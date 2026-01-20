@@ -1,0 +1,9 @@
+@echo off
+:: --- PERSONAL CONFIGURATION ---
+:: ONLY variables go here. Do NOT include logic commands.
+
+:: 1. Where the DLL is built (WSL Path)
+set "build\NppPluginMendixDatadogCopyPasteCleanup.dll"
+
+:: 2. Where the DLL needs to go (Notepad++ Plugins Folder)
+set "NPP_PLUGIN_DIR=C:\Program Files\Notepad++\plugins\NppPluginMendixDatadogCopyPasteCleanup"
