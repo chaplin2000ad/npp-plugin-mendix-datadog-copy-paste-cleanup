@@ -1,6 +1,7 @@
 #include "PluginDefinition.h"
 #include <stdio.h> 
 #include <stdlib.h> // For malloc/free
+#include <string.h> // For strcmp
 
 // Standard Notepad++ Plugin Exports
 #define DLLEXPORT extern "C" __declspec(dllexport)
@@ -23,56 +24,27 @@ void debugMsg(const TCHAR* msg) {
     ::MessageBox(NULL, msg, _T("Debug Trace"), MB_OK);
 }
 
-// --- YOUR CUSTOM FUNCTIONS ---
+// --- CUSTOM FUNCTIONS ---
 
-// Force __cdecl to match Notepad++ function pointer typedef
+// 1. REMOVE EMPTY ROWS
 void __cdecl removeEmptyRows() {
-    // debugMsg(_T("Step 1: Function Start"));
-
-    // CHECK: Is the global data still valid?
-    if (nppData._scintillaMain == NULL) {
-        debugMsg(_T("CRITICAL ERROR: _scintillaMain is NULL. Global data was lost!"));
-        return;
-    }
-
-    // DIRECT ACCESS: Skip the 'getCurrentScintilla' complexity for now.
-    // We talk directly to the main editor window.
+    if (nppData._scintillaMain == NULL) return;
     HWND hSci = nppData._scintillaMain;
-    
-    // debugMsg(_T("Step 2: Handle Valid. Sending Undo Start..."));
 
-    // 1. Group Undo
     ::SendMessage(hSci, SCI_BEGINUNDOACTION, 0, 0);
-    // debugMsg(_T("Step 3: Undo Action Started. Getting Line Count..."));
 
-    // 2. Get Line Count
     int lineCount = (int)::SendMessage(hSci, SCI_GETLINECOUNT, 0, 0);
     
-    // Simple check to ensure we got a valid number
-    if (lineCount <= 0) {
-        debugMsg(_T("Step 4: Line count is 0 or invalid?"));
-    } else {
-    //    debugMsg(_T("Step 4: Line Count obtained. Starting Loop..."));
-    }
-
-    // 3. Iterate BACKWARDS
-    bool deletedSomething = false;
+    // Iterate BACKWARDS
     for (int i = lineCount - 1; i >= 0; i--) {
         int lineLength = (int)::SendMessage(hSci, SCI_LINELENGTH, i, 0);
-        
         if (lineLength <= 0) continue;
 
-        // Allocate memory (Pure C malloc)
         char* buffer = (char*)malloc(lineLength + 1);
-        if (!buffer) {
-            debugMsg(_T("Error: Malloc failed"));
-            break;
-        }
+        if (!buffer) break;
 
-        // SCI_GETLINE fills the buffer
         ::SendMessage(hSci, SCI_GETLINE, i, (LPARAM)buffer);
         
-        // Manual check for visible characters
         bool isBlank = true;
         for (int j = 0; j < lineLength; j++) {
             char c = buffer[j];
@@ -81,27 +53,70 @@ void __cdecl removeEmptyRows() {
                 break;
             }
         }
-        
-        free(buffer); // Release memory
+        free(buffer);
 
         if (isBlank) {
             int lineStart = (int)::SendMessage(hSci, SCI_POSITIONFROMLINE, i, 0);
             ::SendMessage(hSci, SCI_DELETERANGE, lineStart, lineLength);
-            deletedSomething = true;
         }
     }
 
     ::SendMessage(hSci, SCI_ENDUNDOACTION, 0, 0);
-    
-    if (deletedSomething) {
-    //    debugMsg(_T("Step 5: Finished! (Rows were deleted)"));
-    } else {
-    //    debugMsg(_T("Step 5: Finished! (No empty rows found)"));
-    }
 }
 
-// ... Placeholders ...
-void __cdecl deduplicate() { ::MessageBox(NULL, _T("Deduplicate"), _T("Step 2"), MB_OK); }
+// 2. DEDUPLICATE (Consecutive Only)
+void __cdecl deduplicate() {
+    if (nppData._scintillaMain == NULL) return;
+    HWND hSci = nppData._scintillaMain;
+
+    ::SendMessage(hSci, SCI_BEGINUNDOACTION, 0, 0);
+
+    int lineCount = (int)::SendMessage(hSci, SCI_GETLINECOUNT, 0, 0);
+
+    // Iterate BACKWARDS from the last line down to the 2nd line (index 1)
+    // We compare Line[i] with Line[i-1]
+    for (int i = lineCount - 1; i > 0; i--) {
+        
+        int lenCurrent = (int)::SendMessage(hSci, SCI_LINELENGTH, i, 0);
+        int lenPrev    = (int)::SendMessage(hSci, SCI_LINELENGTH, i - 1, 0);
+
+        // Optimization: If lengths differ, they can't be duplicates
+        if (lenCurrent != lenPrev) continue;
+        if (lenCurrent <= 0) continue; 
+
+        // Allocate buffers
+        char* bufCurrent = (char*)malloc(lenCurrent + 1);
+        char* bufPrev    = (char*)malloc(lenPrev + 1);
+
+        if (!bufCurrent || !bufPrev) {
+            // Memory Panic: Clean up and abort safely
+            if (bufCurrent) free(bufCurrent);
+            if (bufPrev) free(bufPrev);
+            break; 
+        }
+
+        // Fetch Line Content
+        ::SendMessage(hSci, SCI_GETLINE, i, (LPARAM)bufCurrent);
+        bufCurrent[lenCurrent] = '\0'; // IMPORTANT: SCI_GETLINE does not null-terminate
+
+        ::SendMessage(hSci, SCI_GETLINE, i - 1, (LPARAM)bufPrev);
+        bufPrev[lenPrev] = '\0'; 
+
+        // Compare
+        if (strcmp(bufCurrent, bufPrev) == 0) {
+            // Identical! Delete the CURRENT line (the bottom one)
+            int lineStart = (int)::SendMessage(hSci, SCI_POSITIONFROMLINE, i, 0);
+            ::SendMessage(hSci, SCI_DELETERANGE, lineStart, lenCurrent);
+        }
+
+        free(bufCurrent);
+        free(bufPrev);
+    }
+
+    ::SendMessage(hSci, SCI_ENDUNDOACTION, 0, 0);
+}
+
+// ... Placeholders for future steps ...
 void __cdecl compress() { ::MessageBox(NULL, _T("Compress"), _T("Step 3"), MB_OK); }
 void __cdecl reorder() { ::MessageBox(NULL, _T("Reorder"), _T("Step 4"), MB_OK); }
 
@@ -135,7 +150,6 @@ void commandMenuInit() {
 DLLEXPORT BOOL isUnicode() { return TRUE; }
 
 DLLEXPORT void setInfo(void * rawData) {
-    // Manual copy of struct data
     NppData* pData = (NppData*)rawData;
     nppData = *pData;
     commandMenuInit();
