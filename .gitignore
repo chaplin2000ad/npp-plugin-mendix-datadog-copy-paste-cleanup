@@ -40,3 +40,6 @@ Makefile
 # --- OS System Files ---
 .DS_Store
 Thumbs.db
+
+# --- Local Scripts & Secrets ---
+local.settings.bat

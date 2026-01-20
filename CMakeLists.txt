@@ -18,13 +18,14 @@ set_target_properties(NppPluginMendixDatadogCopyPasteCleanup PROPERTIES PREFIX "
 # Npp Plugins need to start with specific defines
 target_compile_definitions(NppPluginMendixDatadogCopyPasteCleanup PRIVATE UNICODE _UNICODE _WIN64)
 
-# --- FIX 2: Static Linking (Required for MinGW plugins to load) ---
+# Link standard windows libraries AND force static linking for MinGW internals
 target_link_libraries(NppPluginMendixDatadogCopyPasteCleanup 
     PRIVATE 
     shlwapi
     -static
     -static-libgcc
     -static-libstdc++
+    -Wl,-Bstatic,--whole-archive -lwinpthread -Wl,--no-whole-archive # Force winpthread static
 )
 
 #Strip debug symbols (Optional - Uncomment if you fixed the syntax error)
