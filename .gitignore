@@ -1,0 +1,37 @@
+# --- Build Output ---
+# Ignore the entire build folder where CMake generates files
+build/
+bin/
+dist/
+
+# --- Compiled Binaries & Objects ---
+# Never commit binaries; use GitHub Releases for the final DLL
+*.dll
+*.exe
+*.so
+*.o
+*.obj
+*.lib
+*.a
+
+# --- CMake Generated Files ---
+# In case you run cmake in the root by accident
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# --- IDE & Editor Settings ---
+# VS Code: Ignore user settings, but KEEP .devcontainer/
+.vscode/
+
+# Visual Studio: Ignore if you ever open it in native VS
+.vs/
+*.sln
+*.vcxproj
+*.vcxproj.user
+*.vcxproj.filters
+
+# --- OS System Files ---
+.DS_Store
+Thumbs.db
