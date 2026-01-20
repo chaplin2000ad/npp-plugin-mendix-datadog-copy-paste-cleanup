@@ -9,7 +9,7 @@
 
 // --- GLOBAL VARIABLES ---
 NppData nppData; 
-FuncItem funcItem[5]; // Increased to 5 items
+FuncItem funcItem[5]; // 5 Menu Items
 
 // --- CONSTANTS ---
 const int SCI_GETLINECOUNT       = 2154;
@@ -227,10 +227,8 @@ void __cdecl fullCleanup() {
     if (nppData._scintillaMain == NULL) return;
     HWND hSci = nppData._scintillaMain;
 
-    // Start a master undo block so Ctrl+Z undoes EVERYTHING at once
     ::SendMessage(hSci, SCI_BEGINUNDOACTION, 0, 0);
 
-    // Run the sequence
     removeEmptyRows();
     deduplicate();
     compress();
@@ -241,7 +239,7 @@ void __cdecl fullCleanup() {
 
 // --- STANDARD PLUGIN BOILERPLATE ---
 void commandMenuInit() {
-    // 0. Full Cleanup (No Number)
+    // 0. Full Cleanup
     lstrcpy(funcItem[0]._itemName, _T("Full cleanup"));
     funcItem[0]._pFunc = fullCleanup;
     funcItem[0]._init2Check = false;
@@ -285,11 +283,15 @@ DLLEXPORT void setInfo(void * rawData) {
     commandMenuInit();
 }
 
-DLLEXPORT const TCHAR * getName() { return _T("Mendix-Datadog Copy/Paste Cleanup"); }
+// --- UPDATED NAME ---
+DLLEXPORT const TCHAR * getName() {
+    return _T("Mendix-Support: Datadog Copy/Paste Cleanup");
+}
+
 DLLEXPORT LRESULT messageProc(UINT Message, WPARAM wParam, LPARAM lParam) { return TRUE; }
 DLLEXPORT void beNotified(void *notifyCode) { return; }
 DLLEXPORT void * getFuncsArray(int *nbF) { 
-    *nbF = 5; // Updated count
+    *nbF = 5; 
     return funcItem; 
 }
 BOOL APIENTRY DllMain(HANDLE hModule, DWORD  reasonForCall, LPVOID lpReserved) { return TRUE; }
