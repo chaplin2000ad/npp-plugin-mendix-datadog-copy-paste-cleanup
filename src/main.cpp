@@ -9,7 +9,7 @@
 
 // --- GLOBAL VARIABLES ---
 NppData nppData; 
-FuncItem funcItem[4];
+FuncItem funcItem[5]; // Increased to 5 items
 
 // --- CONSTANTS ---
 const int SCI_GETLINECOUNT       = 2154;
@@ -156,7 +156,7 @@ void __cdecl compress() {
     ::SendMessage(hSci, SCI_ENDUNDOACTION, 0, 0);
 }
 
-// 4. REVERSE ORDER (Fixed: Content Only)
+// 4. REVERSE ORDER
 void __cdecl reverseOrder() {
     if (nppData._scintillaMain == NULL) return;
     HWND hSci = nppData._scintillaMain;
@@ -169,7 +169,6 @@ void __cdecl reverseOrder() {
     int j = lineCount - 1;
 
     while (i < j) {
-        // 1. Get positions of CONTENT only (excluding \r\n)
         int startTop = (int)::SendMessage(hSci, SCI_POSITIONFROMLINE, i, 0);
         int endTop   = (int)::SendMessage(hSci, SCI_GETLINEENDPOSITION, i, 0);
         int lenTop   = endTop - startTop;
@@ -178,7 +177,6 @@ void __cdecl reverseOrder() {
         int endBot   = (int)::SendMessage(hSci, SCI_GETLINEENDPOSITION, j, 0);
         int lenBot   = endBot - startBot;
 
-        // 2. Get Full Text to extract content safely
         int fullLenTop = (int)::SendMessage(hSci, SCI_LINELENGTH, i, 0);
         int fullLenBot = (int)::SendMessage(hSci, SCI_LINELENGTH, j, 0);
 
@@ -194,8 +192,6 @@ void __cdecl reverseOrder() {
         ::SendMessage(hSci, SCI_GETLINE, i, (LPARAM)fullBufTop);
         ::SendMessage(hSci, SCI_GETLINE, j, (LPARAM)fullBufBot);
 
-        // 3. Create Content-Only Buffers
-        // We trim the buffer to the 'content' length calculated by Scintilla
         char* contentTop = (char*)malloc(lenTop + 1);
         char* contentBot = (char*)malloc(lenBot + 1);
 
@@ -208,14 +204,10 @@ void __cdecl reverseOrder() {
         free(fullBufTop);
         free(fullBufBot);
 
-        // 4. Swap Content
-        // Replace Bottom First (j)
         ::SendMessage(hSci, SCI_SETTARGETSTART, startBot, 0);
         ::SendMessage(hSci, SCI_SETTARGETEND, endBot, 0);
         ::SendMessage(hSci, SCI_REPLACETARGET, (WPARAM)-1, (LPARAM)contentTop);
 
-        // Replace Top Second (i)
-        // Note: Changing Bottom (j) does NOT affect the position of Top (i) because i < j.
         ::SendMessage(hSci, SCI_SETTARGETSTART, startTop, 0);
         ::SendMessage(hSci, SCI_SETTARGETEND, endTop, 0);
         ::SendMessage(hSci, SCI_REPLACETARGET, (WPARAM)-1, (LPARAM)contentBot);
@@ -230,31 +222,59 @@ void __cdecl reverseOrder() {
     ::SendMessage(hSci, SCI_ENDUNDOACTION, 0, 0);
 }
 
+// 0. FULL CLEANUP (Wrapper)
+void __cdecl fullCleanup() {
+    if (nppData._scintillaMain == NULL) return;
+    HWND hSci = nppData._scintillaMain;
+
+    // Start a master undo block so Ctrl+Z undoes EVERYTHING at once
+    ::SendMessage(hSci, SCI_BEGINUNDOACTION, 0, 0);
+
+    // Run the sequence
+    removeEmptyRows();
+    deduplicate();
+    compress();
+    reverseOrder();
+
+    ::SendMessage(hSci, SCI_ENDUNDOACTION, 0, 0);
+}
+
 // --- STANDARD PLUGIN BOILERPLATE ---
 void commandMenuInit() {
-    lstrcpy(funcItem[0]._itemName, _T("1. Remove Empty Rows"));
-    funcItem[0]._pFunc = removeEmptyRows;
+    // 0. Full Cleanup (No Number)
+    lstrcpy(funcItem[0]._itemName, _T("Full cleanup"));
+    funcItem[0]._pFunc = fullCleanup;
     funcItem[0]._init2Check = false;
     funcItem[0]._cmdID = 0;
     funcItem[0]._pShKey = NULL;
 
-    lstrcpy(funcItem[1]._itemName, _T("2. Deduplicate"));
-    funcItem[1]._pFunc = deduplicate;
+    // 1. Remove Empty Rows
+    lstrcpy(funcItem[1]._itemName, _T("1. Remove Empty Rows"));
+    funcItem[1]._pFunc = removeEmptyRows;
     funcItem[1]._init2Check = false;
     funcItem[1]._cmdID = 1;
     funcItem[1]._pShKey = NULL;
 
-    lstrcpy(funcItem[2]._itemName, _T("3. Compress"));
-    funcItem[2]._pFunc = compress;
+    // 2. Deduplicate
+    lstrcpy(funcItem[2]._itemName, _T("2. Deduplicate"));
+    funcItem[2]._pFunc = deduplicate;
     funcItem[2]._init2Check = false;
     funcItem[2]._cmdID = 2;
     funcItem[2]._pShKey = NULL;
 
-    lstrcpy(funcItem[3]._itemName, _T("4. Reverse order"));
-    funcItem[3]._pFunc = reverseOrder;
+    // 3. Compress
+    lstrcpy(funcItem[3]._itemName, _T("3. Compress"));
+    funcItem[3]._pFunc = compress;
     funcItem[3]._init2Check = false;
     funcItem[3]._cmdID = 3;
     funcItem[3]._pShKey = NULL;
+
+    // 4. Reverse order
+    lstrcpy(funcItem[4]._itemName, _T("4. Reverse order"));
+    funcItem[4]._pFunc = reverseOrder;
+    funcItem[4]._init2Check = false;
+    funcItem[4]._cmdID = 4;
+    funcItem[4]._pShKey = NULL;
 }
 
 DLLEXPORT BOOL isUnicode() { return TRUE; }
@@ -268,5 +288,8 @@ DLLEXPORT void setInfo(void * rawData) {
 DLLEXPORT const TCHAR * getName() { return _T("Mendix-Datadog Copy/Paste Cleanup"); }
 DLLEXPORT LRESULT messageProc(UINT Message, WPARAM wParam, LPARAM lParam) { return TRUE; }
 DLLEXPORT void beNotified(void *notifyCode) { return; }
-DLLEXPORT void * getFuncsArray(int *nbF) { *nbF = 4; return funcItem; }
+DLLEXPORT void * getFuncsArray(int *nbF) { 
+    *nbF = 5; // Updated count
+    return funcItem; 
+}
 BOOL APIENTRY DllMain(HANDLE hModule, DWORD  reasonForCall, LPVOID lpReserved) { return TRUE; }
