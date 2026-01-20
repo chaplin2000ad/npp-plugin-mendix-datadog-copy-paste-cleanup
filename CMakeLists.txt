@@ -20,7 +20,6 @@ target_compile_definitions(NppPluginMendixDatadogCopyPasteCleanup PRIVATE UNICOD
 target_link_libraries(NppPluginMendixDatadogCopyPasteCleanup PRIVATE shlwapi)
 
 # Strip debug symbols to reduce size (Optional)
-add_custom_command(TARGET NppPluginMendixDatadogCopyPasteCleanup POST_BUILD
-    COMMAND x86_64-w64-mingw32-strip $<TARGET_FILE:NppPluginMendixDatadogCopyPasteCleanup
->
-)
+#add_custom_command(TARGET NppPluginMendixDatadogCopyPasteCleanup POST_BUILD
+#    COMMAND x86_64-w64-mingw32-strip $<TARGET_FILE:NppPluginMendixDatadogCopyPasteCleanup
+#)
