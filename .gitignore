@@ -25,6 +25,11 @@ Makefile
 # VS Code: Ignore user settings, but KEEP .devcontainer/
 .vscode/
 
+# ...but allow shared project config:
+!.vscode/c_cpp_properties.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
 # Visual Studio: Ignore if you ever open it in native VS
 .vs/
 *.sln
